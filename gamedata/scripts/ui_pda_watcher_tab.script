@@ -1,0 +1,271 @@
+--| Chernobyl Relay Chat GUI
+--| By TKGP, Anchorpoint, Amon
+
+local watcher = require("watcher")
+local xml = CScriptXmlInit()
+xml:ParseFile("pda_watcher.xml")
+
+local SINGLETON = nil
+
+--- returns the pda ui instance
+--- @return pda_watcher_tab
+function get_ui()
+    SINGLETON = SINGLETON or pda_watcher_tab()
+    return SINGLETON
+end
+
+--- information from the save file
+local data_from_save = {
+	sort_by_date = false,
+	use_cyrillic = false,
+}
+
+--- loads information from the save file
+function load_state(m_data)
+	data_from_save.sort_by_date = m_data.sort_by_date or false
+	data_from_save.use_cyrillic = m_data.use_cyrillic or false
+end
+
+--- saves information to the save file
+function save_state(m_data)
+	m_data.sort_by_date = get_ui().sort_by_date:GetCheck()
+	m_data.use_cyrillic = get_ui().use_cyrillic:GetCheck()
+end
+
+function on_game_start()
+	RegisterScriptCallback("load_state", load_state)
+	RegisterScriptCallback("save_state", save_state)
+end
+
+class "pda_watcher_tab" (CUIScriptWnd)
+function pda_watcher_tab:__init() super()
+	--- all mesages displayed inside the PDA
+	--- @type Message[]
+    self.messages = {}
+
+	--- init gui
+	self:init_controls()
+end
+
+-- initialise the interface.
+function pda_watcher_tab:init_controls()
+	self:SetWndRect(Frect():set(0, 0, 1024, 768))
+
+    xml:ParseFile("pda_watcher.xml")
+	xml:InitFrame("frame1", self)
+	xml:InitFrame("frame2", self)
+
+    self.message_list = xml:InitScrollView("messages", self)
+
+	self.edit_box = crc_textbox.CRCTextbox(xml, 'edit_box', self)
+	self.edit_box.on_key_press = function(key) return self:handle_edit_key_press(key) end
+
+	self.no_connection_error = xml:InitStatic("connection_lost", self)
+	self.no_connection_error:Show(false)
+
+	self.current_channel = xml:InitStatic("current_channel", self)
+	self.current_channel:TextControl():SetText("#" .. watcher.channel)
+
+	self.button_send = xml:Init3tButton('button_send', self)
+	self:Register(self.button_send, 'button_send')
+	self:AddCallback("button_send", ui_events.BUTTON_CLICKED, self.send, self)
+
+	self.button_reconnect = xml:Init3tButton("reconnect_button", self)
+	self:Register(self.button_reconnect, "button_reconnect")
+	self:AddCallback("button_reconnect", ui_events.BUTTON_CLICKED, self.reconnect, self)
+
+	self.sort_by_date = xml:InitCheck('sort_by_date', self)
+	self.sort_by_date:SetCheck(data_from_save.sort_by_date)
+	self:Register(self.sort_by_date, 'sort_by_date')
+    self:AddCallback('sort_by_date', ui_events.BUTTON_CLICKED, self.__react_to_messages_filter_or_sort_update, self)
+
+	self.use_cyrillic = xml:InitCheck('use_cyrillic', self)
+	self.use_cyrillic:SetCheck(data_from_save.use_cyrillic)
+	self:Register(self.use_cyrillic, 'use_cyrillic')
+    self:AddCallback('use_cyrillic', ui_events.BUTTON_CLICKED, function () self.edit_box:use_cyrillic(self.use_cyrillic:GetCheck()) end, self)
+
+    self.messages = {}
+end
+
+function pda_watcher_tab:reconnect()
+	-- leave channel and disconnect
+	watcher.username = crc_config.get().username
+	watcher.send("PART #stalker_anomaly_" .. watcher.channel)
+	watcher.send("QUIT")
+
+	watcher.reset_states()
+	watcher.init()
+	watcher_init.watcher_send_tip(db.actor, "Watcher", "Reconnecting...", nil, nil, watcher.tips_duration)
+end
+
+--- called by the edit_box component, when a key is pressed while typing in a textbox. Used to implement keyboard shortcuts when typing a message.
+--- ff it returns true the edit_box will exit the edit mode.
+--- @param key number
+--- @return boolean
+function pda_watcher_tab:handle_edit_key_press(key)
+	--- send message when enter pressed
+	if key == DIK_keys.DIK_RETURN then
+        self:send()
+        return true
+    end
+
+	return false
+end
+
+--- scrolls the message list up or down as much as possible depending on the current sorting mode
+function pda_watcher_tab:scroll_messages_to_the_latest()
+	if self.sort_by_date:GetCheck() then
+		self.message_list:ScrollToBegin()
+	else
+		self.message_list:ScrollToEnd()
+	end
+end
+
+function pda_watcher_tab:send()
+	if not watcher.is_connected then
+		watcher_init.watcher_send_tip(db.actor, "Watcher", "No connection.", nil, nil, 1000)
+		self.edit_box:clear()	
+		return
+	end
+
+	local input = self.edit_box:get_text()
+    local faction = db.actor:character_community():gsub("actor_", "")
+
+	if input and input ~= "" then
+		local command = {}
+
+		for arg in input:gmatch("%S+") do
+			table.insert(command, arg)
+		end
+
+		if command[1] == "/join" then
+			if command[2] and command[2] ~= watcher.channel then
+				watcher.send("PART #stalker_anomaly_" .. watcher.channel)
+				watcher.channel = command[2]
+				watcher.send("JOIN #stalker_anomaly_" .. watcher.channel)
+				self.current_channel:TextControl():SetText("#" .. watcher.channel)
+				self.message_list:Clear()
+				self.messages = {}
+			end
+		else
+			local title = watcher.username .. ", " .. watcher_init.watcher_translate_faction(faction)
+        	watcher_init.watcher_send_tip(
+            	db.actor,
+				title,
+            	input, nil, faction, watcher.message_duration
+        	)
+			watcher.send("PRIVMSG " .. "#stalker_anomaly_" .. watcher.channel .. " :" .. faction .. "@" .. input)
+			self:add_message(self:get_icon(faction), title, input)
+		end
+
+		
+		self.edit_box:clear()	
+	end
+
+	self:scroll_messages_to_the_latest()
+end
+
+--- redraws the message list and scrolls it to the latest message
+function pda_watcher_tab:__react_to_messages_filter_or_sort_update()
+	self:update_messages()
+	self:scroll_messages_to_the_latest()
+end
+
+--- returns true when the Chat menu is displayed inside the PDA
+--- @return boolean
+function pda_watcher_tab:is_open()
+    return self:IsShown()
+end
+
+--- check if list is scrolled to end
+--- @param list CUIScrollView
+--- @return boolean
+function pda_watcher_tab:is_list_max_scrolled(list)
+	return list:GetCurrentScrollPos() >= list:GetMaxScrollPos() - list:GetHeight()
+end
+
+--- redraw the displayed messages
+function pda_watcher_tab:update_messages()
+	--- clearing the scroll list set its scroll position to zero, so we need to store it
+	local last_scroll_pos = self.message_list:GetCurrentScrollPos()
+	local was_max_scrolled = self:is_list_max_scrolled(self.message_list)
+
+	--- display latest message as first or last depending on player preference 
+	local start_index = (self.sort_by_date:GetCheck() and 1 or #self.messages)
+    local end_index = (self.sort_by_date:GetCheck() and #self.messages or 1)
+    local iterator = (self.sort_by_date:GetCheck() and 1 or -1)
+
+	self.message_list:Clear()
+
+	for i = start_index, end_index, iterator do
+		local messageData = self.messages[i]
+
+		local message = xml:InitStatic("message", nil)
+
+		xml:InitStatic("message:image", message):InitTexture(messageData.icon)
+		xml:InitStatic("message:date_static", message):TextControl():SetText(game.get_game_time():dateToString())
+		xml:InitStatic("message:caption_static", message):TextControl():SetText(messageData.title)
+		xml:InitStatic("message:text_static", message):TextControl():SetText(messageData.text)
+
+		self.message_list:AddWindow(message, true)
+		message:SetAutoDelete(true)
+	end
+
+	--- restore scroll position
+	self.message_list:SetScrollPos(last_scroll_pos)
+
+	--- auto scroll to the latest message in sort_by_date mode
+	if not self.sort_by_date:GetCheck() and was_max_scrolled then
+		self.message_list:ScrollToEnd()
+	end
+end
+
+--- selects pda sound by message type
+--- @param message_type string
+--- @return string
+function pda_watcher_tab:sound_picker(message_type)
+	if message_type == game.translate_string("crc_info") then
+		return "pda_welcome"
+
+	elseif message_type == game.translate_string("crc_error") then
+		return "pda_alarm"
+
+	else
+		return "pda_tips"
+	end
+end
+
+--- adds recived message to pda chat and log
+--- @param icon string
+--- @param title string
+--- @param text string
+--- @param author string
+function pda_watcher_tab:add_message(icon, title, text)
+    local max_messages = crc_config.get().max_messages_size
+	local messages_len = size_table(self.messages)
+
+	if messages_len > max_messages then
+		for i=max_messages, messages_len, 1 do
+			table.remove(self.messages, i)
+		end
+	end
+
+	local message = {title = title, text = text, icon = icon};
+
+	table.insert(self.messages, 1, message)
+	self:update_messages()
+
+    if crc_config.get().news_sound then
+		xr_sound.set_sound_play(db.actor:id(), self:sound_picker(title))
+	end
+end
+
+function pda_watcher_tab:get_icon(faction)
+	local icon = news_manager.tips_icons[faction]
+
+	if not icon then
+		icon = "ui_iconsTotal_grouping"
+	end
+	
+	return icon
+end

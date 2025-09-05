@@ -1,0 +1,155 @@
+local watcher = require("watcher")
+
+function watcher_translate_faction(faction)
+	local faction_name
+	
+	if faction == "stalker" then
+		faction_name = "Loner"
+	elseif faction == "killer" then
+		faction_name = "Mercenary"
+	elseif faction == "greh" then
+		faction_name = "Sin"
+	elseif faction == "ecolog" then
+		faction_name = "Ecologist"
+	elseif faction == "csky" then
+		faction_name = "Clear Sky"
+	elseif faction == "dolg" then
+		faction_name = "Duty"
+	elseif faction == "army" then
+		faction_name = "Military"
+	elseif faction == "isg" then
+		faction_name = "UNISG"
+	else
+		faction_name = faction:gsub("^%l", string.upper)
+	end
+
+	return faction_name
+end
+
+function watcher_send_tip(actor, caption, news_id, timeout, sender, showtime, sender_id)
+	-- Edit of news_manager.send_tip, added parameter for custom caption
+	
+	if news_id == nil then return false end
+	
+	timeout = timeout or 0
+	showtime = showtime or 5000
+
+	if sender_id ~= nil then
+		local id = get_story_object_id(sender_id)
+		local npc = id and alife_object(id)
+		if npc then
+			if npc.online then
+				if xr_wounded.is_heavy_wounded_by_id(npc.id) then
+					printf("[PDA]Cannot send tips [%s], sender is heavy wounded", tostring(news_id))
+					return false
+				end
+			end
+			if not npc:alive() then
+				printf("[PDA]Cannot send tips [%s], sender is dead", tostring(news_id))
+				return false
+			end
+		end
+	end
+
+
+	xr_sound.set_sound_play(AC_ID, "pda_tips")	
+	if (sound_theme.theme[news_id]) then
+		xr_sound.set_sound_play(AC_ID, news_id)
+		if (sound_theme.theme[news_id].snd_obj) then
+			local length = sound_theme.theme[news_id].snd_obj:length()
+			showtime = showtime < length and length or showtime
+		end
+	end
+
+	local texture = "ui_iconsTotal_grouping"
+	if sender ~= nil then
+		if type(sender) == "string" then
+			if news_manager.tips_icons[sender] then
+				texture = news_manager.tips_icons[sender]
+			end
+ 		elseif is_npc_stalker(sender:clsid()) then
+			texture = sender:character_icon()
+		end
+	end
+
+	local news_caption = game.translate_string("st_tip")
+	if caption then
+		-- news_caption = game.translate_string(caption)
+		news_caption = caption
+	end
+
+	-- local news_text = game.translate_string(news_id)
+	local news_text = news_id
+	actor:give_game_news(news_caption, news_text, texture, timeout*1000, showtime, 0)
+
+	return true
+end
+
+function watcher.on_message_receive(msg)
+  	local prefix, command, params, trailing = watcher.parse_message(msg)
+
+	if command == "PRIVMSG" then
+		local user = prefix:match("^(.-)!")
+		if not user then user = prefix end
+		local channel = params
+		local text = trailing
+
+		local title
+		local faction, message = text:match("^([^@]+)@(.+)$")
+
+		if faction then
+			local faction_name = watcher_translate_faction(faction)
+			title = user .. ", " .. faction_name
+
+			watcher_send_tip(db.actor, title, message, nil, faction, watcher.message_duration)
+		else
+			title = user .. ", Watcher"
+			watcher_send_tip(db.actor, title, text, nil, nil, watcher.message_duration)
+		end 
+	
+		local pda = ui_pda_watcher_tab.get_ui()
+		pda:add_message(faction and pda:get_icon(faction) or "ui_iconsTotal_grouping", title, faction and message or text)
+	end
+end
+
+function watcher.on_connecting()
+	watcher_send_tip(db.actor, "Watcher", "Connecting to server, please wait...", nil, nil, watcher.tips_duration)
+	ui_pda_watcher_tab.get_ui():add_message("ui_iconsTotal_grouping", "Watcher", "Connecting to server, please wait...")
+end
+
+function watcher.on_connected()
+	watcher_send_tip(db.actor, "Watcher", "Connected!", nil, nil, watcher.tips_duration)
+	ui_pda_watcher_tab.get_ui():add_message("ui_iconsTotal_grouping", "Watcher", "Connected!")
+end
+
+function watcher.on_illegal_name()
+	watcher_send_tip(db.actor, "Watcher", "Couldn't connect, illegal username!", nil, nil, watcher.tips_duration)
+	ui_pda_watcher_tab.get_ui():add_message("ui_iconsTotal_grouping", "Watcher", "Couldn't connect, illegal username!")
+end
+
+function watcher.on_name_already_in_use()
+	watcher_send_tip(db.actor, "Watcher", "Couldn't connect, username already in use!", nil, nil, watcher.tips_duration)
+	ui_pda_watcher_tab.get_ui():add_message("ui_iconsTotal_grouping", "Watcher", "Couldn't connect, username already in use!")
+end
+
+function start_watcher()
+	watcher.username = crc_config.get().username
+	watcher.init()
+	RegisterScriptCallback("actor_on_update", watcher.update)
+end
+
+function watcher_set_pda_ui()
+	local set_active_subdialog = pda.set_active_subdialog
+	pda.set_active_subdialog = function (section)
+		if (section == "eptWatcher") then
+			return ui_pda_watcher_tab.get_ui()
+		end
+
+		return set_active_subdialog(section)
+	end
+end
+
+function on_game_start()	
+	RegisterScriptCallback("actor_on_first_update", start_watcher)
+	RegisterScriptCallback("on_game_load", watcher_set_pda_ui)
+end

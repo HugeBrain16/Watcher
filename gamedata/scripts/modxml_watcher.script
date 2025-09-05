@@ -1,0 +1,41 @@
+function on_xml_read()
+	RegisterScriptCallback("on_xml_read", function(xml_file_name, xml_obj)
+		if xml_file_name == [[ui\pda_16.xml]] then
+			local watcher_button =
+[[
+<button x="476" y="0" width="79" height="27" id="eptWatcher" frame_mode="0">
+	<text align="c" vert_align="c" x="0" y="0" font="letterica16">pda_btn_watcher</text>
+    <texture>ui_inGame2_pda_button</texture>
+	<text_color>
+		<t r="255" g="255" b="255"/>
+		<d r="255" g="255" b="255"/>
+		<e r="200" g="200" b="200"/>
+		<h r="170" g="170" b="170"/>
+	</text_color>
+</button>			
+]]
+			local res = xml_obj:query("tab")
+			local element
+			if is_not_empty(res) then
+				element = res[1]
+			end
+            
+            for i = 1, #element.kids do
+                if i > 1 then
+                    xml_obj:setElementAttr(element.kids[i], {x=68 * (i - 1)})
+                end
+                xml_obj:setElementAttr(element.kids[i], {width="79"})
+            end 
+
+			xml_obj:insertFromXMLString(watcher_button, element, #element.kids)
+		elseif xml_file_name == [[text\eng\ui_st_pda.xml]] then
+            local watcher_button_text =
+[[
+<string id="pda_btn_watcher">
+    <text>Watcher</text>
+</string>
+]]
+            xml_obj:insertFromXMLString(watcher_button_text)
+        end	
+	end)
+end
