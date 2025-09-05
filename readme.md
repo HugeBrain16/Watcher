@@ -2,10 +2,19 @@
 
 Stalker anomaly irc client
 
+![scr](https://i.imgur.com/UEmsiYn.png)
+
 features only limited to basic chat functionality as of now
 
 you must reconnect after you change username
 /join <channel> to change channel
+
+## Installation
+
+**MCM is required!! for changing username**
+
+download this repo and extract the content to your stalker anomaly folder, works with JSGME
+for MO2 im guessing you need to put the bin folder automatically and then add gamedata to MO2
 
 ## Credits
 - TKGP & itsAnchorpoint - inspiration
