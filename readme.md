@@ -6,8 +6,8 @@ Stalker anomaly irc client
 
 features only limited to basic chat functionality as of now
 
-you must reconnect after you change username
-/join <channel> to change channel
+you must reconnect after you change username  
+`/join <channel>` to change channel  
 
 ## Installation
 
