@@ -103,6 +103,14 @@
 	<string id="ui_mcm_crc_username">
 		<text>Username</text>
 	</string>
+	
+	<string id="ui_mcm_crc_server">
+		<text>Server</text>
+	</string>
+
+	<string id="ui_mcm_crc_debugging">
+		<text>Enable debugging</text>
+	</string>
 
 	<string id="ui_mcm_crc_news_sound">
 		<text>Play message sound</text>

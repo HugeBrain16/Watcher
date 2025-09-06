@@ -132,8 +132,16 @@ function watcher.on_name_already_in_use()
 	ui_pda_watcher_tab.get_ui():add_message("ui_iconsTotal_grouping", "Watcher", "Couldn't connect, username already in use!")
 end
 
+function watcher.on_connection_error(message)
+	watcher_send_tip(db.actor, "Watcher", "Connection error: " .. message, nil, nil, watcher.tips_duration)
+	ui_pda_watcher_tab.get_ui():add_message("ui_iconsTotal_grouping", "Watcher", "Connection error: " .. message)
+end
+
 function start_watcher()
 	watcher.username = crc_config.get().username
+	watcher.server = crc_config.get().server
+	watcher.debugging = crc_config.get().debugging
+
 	watcher.init()
 	RegisterScriptCallback("actor_on_update", watcher.update)
 end

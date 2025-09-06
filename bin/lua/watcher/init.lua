@@ -12,6 +12,7 @@ M.tips_duration = 10000
 M.message_duration = 5000
 
 M.logged_in = false
+M.debugging = false
 M.is_connected = false
 M.update_interval = 100
 M.last_update = 0
@@ -21,6 +22,7 @@ M.on_connecting_called = false
 M.on_connected_called = false
 M.on_illegal_name_called = false
 M.on_name_already_in_use_called = false
+M.on_connection_error_called = false
 
 -- callbacks
 M.on_connecting = nil
@@ -28,6 +30,7 @@ M.on_connected = nil
 M.on_illegal_name = nil
 M.on_name_already_in_use = nil
 M.on_message_receive = nil
+M.on_connection_error = nil
 
 function M.reset_states()
 	M.is_connected = false
@@ -36,6 +39,7 @@ function M.reset_states()
 	M.on_connecting_called = false
 	M.on_illegal_name_called = false
 	M.on_name_already_in_use_called = false
+	M.on_connection_error_called = false
 end
 
 function M.parse_message(line)
@@ -124,6 +128,15 @@ function M.update()
 			M.on_connecting()
 			M.on_connecting_called = true
 		end
+	elseif M.irc:status() == "error" then
+		if not M.on_connection_error_called then
+			M.on_connection_error(msg)
+			M.on_connection_error_called = true
+		end
+	end
+
+	if M.debugging then
+		printf("[Watcher] (poll result: %s, status: %s) %s", ok, M.irc:status(), msg)
 	end
 end
 

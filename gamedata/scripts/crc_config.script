@@ -6,7 +6,9 @@ local MAX_VALUE = 2^1023
 
 --- default configuration
 local config = {
-	username = watcher.username,
+	username = "Stalker",
+	server = "irc.kbfail.net:6667",
+	debugging = false,
 	news_sound = true,
 	max_messages_size = 50,
 	keyboard_layout = 1,
@@ -78,7 +80,9 @@ keyboard_layouts_cyrillic = {
 --- MCM Config
 local mcm_config = {
 	id = "crc", sh = true, gr = {
-		{id = "username", type = "input", val = 0, content = watcher.username, def = "Stalker"},
+		{id = "debugging", type = "check", val = 1, def = config.debugging},
+		{id = "username", type = "input", val = 0, content = watcher.username, def = config.username},
+		{id = "server", type = "input", val = 0, content = watcher.server, def = config.server},
 		{id = "news_sound", type = "check", val = 1, def = config.news_sound},
 		{id = "max_messages_size", type = "input", val = 2, def = config.max_messages_size, min = 0, max=MAX_VALUE},
 		{id = "keyboard_layout", type = "list", val = 2, content = keyboard_layouts, def = config.keyboard_layout},

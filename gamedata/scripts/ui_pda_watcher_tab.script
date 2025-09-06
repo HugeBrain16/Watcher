@@ -90,6 +90,9 @@ end
 function pda_watcher_tab:reconnect()
 	-- leave channel and disconnect
 	watcher.username = crc_config.get().username
+	watcher.server = crc_config.get().server
+	watcher.debugging = crc_config.get().debugging
+
 	watcher.send("PART #stalker_anomaly_" .. watcher.channel)
 	watcher.send("QUIT")
 

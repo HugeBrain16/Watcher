@@ -6,8 +6,8 @@ Stalker anomaly irc client
 
 features only limited to basic chat functionality as of now
 
-you must reconnect after you change username  
-`/join <channel>` to change channel  
+you must reconnect after you change username or server  
+/join <channel> to change channel  
 
 ## Installation
 
@@ -25,4 +25,3 @@ for MO2 im guessing you need to put the bin folder automatically and then add ga
 - CRCR - https://github.com/itsAnchorpoint/Chernobyl-Relay-Chat-Rebirth
 - CRC 3D PDA - https://github.com/itsAnchorpoint/Chernobyl-Relay-Chat-Rebirth/pull/9
 - pollnet - https://github.com/probable-basilisk/pollnet
-- keyboard-fail - http://irc.kbfail.net
