@@ -14,7 +14,7 @@ you must reconnect after you change username or server
 **MCM is required!! for changing username**
 
 download this repo and extract the content to your stalker anomaly folder, works with JSGME
-for MO2 im guessing you need to put the bin folder automatically and then add gamedata to MO2
+for MO2 im guessing you need to manually put the bin folder in stalker anomaly folder and then add gamedata from MO2
 
 ## Credits
 - TKGP & itsAnchorpoint - inspiration
